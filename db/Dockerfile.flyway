@@ -1,0 +1,11 @@
+# Flyway image that carries the migration files. Built in the deploy job, then run on an app server.
+FROM flyway/flyway:10.17.0-alpine
+
+COPY migration /flyway/sql
+COPY migrate.sh /usr/local/bin/migrate.sh
+
+# Release the migration lock without an open transaction. Otherwise the concurrent index build
+# in V4 waits forever on Flyway's own session.
+ENV FLYWAY_POSTGRESQL_TRANSACTIONAL_LOCK=false
+
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/migrate.sh"]
