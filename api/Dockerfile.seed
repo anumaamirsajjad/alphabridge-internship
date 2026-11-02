@@ -14,11 +14,10 @@ WORKDIR /app
 COPY api/requirements-seed.txt api/requirements.txt ./
 RUN pip install -r requirements-seed.txt
 
-# The code the seeder needs, and the schema files it creates the tables from.
+# The code the seeder needs. The tables come from the Flyway migrations, which run before the seeder.
 COPY api/business/ ./business/
 COPY api/data/ ./data/
 COPY api/validation/ ./validation/
 COPY api/seed/ ./seed/
-COPY init/ /init/
 
 CMD ["python", "-m", "seed.seed_faker"]

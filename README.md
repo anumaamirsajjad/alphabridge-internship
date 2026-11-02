@@ -11,10 +11,11 @@ change the transactions it is part of.
 ```
 banking-db/
 ├── docker-compose.yml      Starts the database and the API together
-├── init/                   SQL run once, when the database is first created
-│   ├── 01_schema.sql           accounts, transactions, refunds, cancellations
-│   ├── 02_idempotency_and_concurrency.sql
-│   └── 03_api_clients.sql      API clients and which accounts they may use
+├── db/migration/           Flyway SQL migrations: the one source of the database schema
+│   ├── V1__create_schema.sql           accounts, transactions, refunds, cancellations
+│   ├── V2__idempotency_and_concurrency.sql
+│   ├── V3__api_clients.sql             API clients and which accounts they may use
+│   └── V4__transaction_list_index.sql  index for the transaction list
 ├── api/
 │   ├── main.py             Routes, API-key check, headers, error replies
 │   ├── banking.py          Banking rules, access rules, and the SQL
