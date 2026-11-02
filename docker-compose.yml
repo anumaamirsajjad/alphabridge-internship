@@ -26,8 +26,8 @@ services:  # Top-level key: the list of containers to run. Each child key below 
     volumes:  # Storage mappings: "where on the host or volume : where inside the container".
       # Named volume: keeps the database files even if the container is removed.
       - postgres_data:/var/lib/postgresql/data  # Store the database files in the named volume postgres_data.
-      # Runs the SQL files in ./init once, on the first start (when the volume is empty).
-      - ./init:/docker-entrypoint-initdb.d:ro  # Share the init folder read-only, so the first start runs the SQL files.
+      # Runs the SQL files in ./db/migration once, on the first start (when the volume is empty).
+      - ./db/migration:/docker-entrypoint-initdb.d:ro  # Share the migration folder read-only, so the first start runs the SQL files.
     healthcheck:  # Tells Docker how to check the database is working.
       # Checks every 5 seconds that the database accepts connections.
       test: ["CMD-SHELL", "pg_isready -U banking_user -d banking_db"]  # Run pg_isready (a PostgreSQL status check). Its exit code says healthy or not.

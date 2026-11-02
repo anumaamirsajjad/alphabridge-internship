@@ -1,9 +1,9 @@
 """Fill the database with fake bank data for testing.
 
 What this file does:
-    First run: creates the tables if they are missing, creates fake accounts and
-    one demo API client, then adds transfers until the transactions table reaches
-    TRANSACTION_TARGET rows.
+    First run: creates fake accounts and one demo API client, then adds transfers
+    until the transactions table reaches TRANSACTION_TARGET rows. The tables must
+    already exist; the Flyway migrations in db/migration create them.
 
     Later runs: reads the accounts that already exist and adds transfers until the
     target is reached again. Nothing is added if the target is already reached.
@@ -12,8 +12,8 @@ What this file does:
     balances are saved after every batch, so a stopped run can be started again.
 
 Run it inside the VPC, because the database is private. Use the seed image
-(see api/Dockerfile.seed). Locally, from the api folder:
-    SCHEMA_DIR=../init DATABASE_URL="..." python -m seed.seed_faker
+(see api/Dockerfile.seed). Locally, from the api folder, after the migrations:
+    DATABASE_URL="..." python -m seed.seed_faker
 """
 
 import os
@@ -22,7 +22,6 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
-from pathlib import Path
 
 from faker import Faker
 
@@ -46,19 +45,6 @@ DESCRIPTIONS = [
 ]
 REFUND_REASONS = ["Item returned", "Duplicate payment", "Service not delivered", "Wrong amount", "Customer request"]
 CANCEL_REASON = "Cancelled by requester"
-
-# Where the schema files are. The seed image copies them to /init.
-SCHEMA_DIR = Path(os.getenv("SCHEMA_DIR", "/init"))
-
-
-# Creates the tables from init/*.sql, in order, but only if they are missing.
-def apply_schema(conn):
-    if conn.execute("SELECT to_regclass('public.accounts') AS t").fetchone()["t"] is not None:
-        return
-    for path in sorted(SCHEMA_DIR.glob("*.sql")):
-        conn.execute(path.read_text(encoding="utf-8"))
-    print(f"Created tables from {SCHEMA_DIR}")
-
 
 # A random amount with two decimal places, between low and high.
 def random_amount(low, high):
@@ -195,7 +181,8 @@ def main():
     now = datetime.now(timezone.utc)
 
     with connect() as conn:
-        apply_schema(conn)
+        if conn.execute("SELECT to_regclass('public.accounts') AS t").fetchone()["t"] is None:
+            raise SystemExit("The tables do not exist yet. Run the Flyway migrations in db/migration first.")
         first_run = conn.execute("SELECT COUNT(*) AS n FROM accounts").fetchone()["n"] == 0
         if first_run:
             accounts = make_accounts(fake, now)
@@ -220,10 +207,17 @@ def main():
     print(f"Transactions now: {existing}. Target: {TRANSACTION_TARGET}. To add: {max(remaining, 0)}.")
 
     batch_number = 0
+    empty_batches = 0
     while remaining > 0:
         count = min(BATCH_SIZE, remaining)
         transactions, refunds, cancellations = make_batch(by_currency, accounts_by_id, now, count)
         batch_number += 1
+
+        # A completed transfer is skipped when its sender has no money left, so a batch can come back
+        # short or empty. Stop only if many batches in a row add nothing, so the loop cannot run forever.
+        empty_batches = 0 if transactions else empty_batches + 1
+        if empty_batches >= 10:
+            raise SystemExit("Stopped: ten batches in a row added nothing. Check the account balances.")
 
         with connect() as conn:
             copy_rows(
@@ -248,7 +242,8 @@ def main():
             )
             save_balances(conn, accounts)
 
-        remaining -= count
+        # Count what was actually inserted. A batch can add fewer rows than it asked for.
+        remaining -= len(transactions)
         print(f"Batch {batch_number}: added {len(transactions)} transactions, {len(refunds)} refunds, "
               f"{len(cancellations)} cancellations. Still to add: {max(remaining, 0)}.")
 
