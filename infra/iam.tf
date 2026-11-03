@@ -74,3 +74,26 @@ resource "aws_iam_role_policy" "app_logs" {
     }]
   })
 }
+
+# The events queue lives in the realtime stack, so it is looked up by name. Only read when
+# events_enabled is true.
+data "aws_sqs_queue" "events" {
+  count = var.events_enabled ? 1 : 0
+  name  = var.events_queue_name
+}
+
+# Send transfer.created events to the queue, and nothing else.
+resource "aws_iam_role_policy" "send_events" {
+  count = var.events_enabled ? 1 : 0
+  name  = "alphabridge-app-send-events"
+  role  = aws_iam_role.app_server.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sqs:SendMessage"]
+      Resource = data.aws_sqs_queue.events[0].arn
+    }]
+  })
+}

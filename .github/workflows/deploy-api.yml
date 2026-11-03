@@ -40,6 +40,33 @@ jobs:
         working-directory: api
         run: pytest
 
+  # Runs the ETL tests, including the Spark tests, which need Java. Nothing is deployed from here.
+  etl-test:
+    if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Java for PySpark
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ETL test dependencies
+        working-directory: etl
+        run: pip install -r requirements-dev.txt
+
+      - name: Run ETL tests
+        working-directory: etl
+        run: pytest
+
   # Checks the Terraform files without touching AWS: formatting, then the configuration itself.
   check-terraform:
     if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'

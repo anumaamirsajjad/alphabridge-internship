@@ -10,9 +10,10 @@ from datetime import datetime
 from uuid import UUID
 
 import psycopg
-from fastapi import FastAPI, Header, Query, Response
+from fastapi import BackgroundTasks, FastAPI, Header, Query, Response
 from fastapi.responses import JSONResponse
 
+import events
 from business import banking
 from business.banking import (
     AuthenticationError,
@@ -97,6 +98,7 @@ def health_check():
 def create_transaction(
     payload: TransactionCreate,
     response: Response,
+    background_tasks: BackgroundTasks,
     x_api_key: str | None = Header(default=None),
     idempotency_key: str | None = Header(default=None),
 ):
@@ -104,6 +106,10 @@ def create_transaction(
         client_id = check_api_key(conn, x_api_key)
         key = read_idempotency_key(idempotency_key)
         transaction, created = banking.TransferService(conn, client_id).create(key, payload)
+    # The transfer is committed at this point. Only a new transfer sends an event, so a retry
+    # does not create a second one. The send runs after the response, so it adds no wait.
+    if created:
+        background_tasks.add_task(events.publish_transfer_created, events.build_event(transaction))
     # 201 for a new transfer, 200 when an earlier identical one is returned.
     response.status_code = 201 if created else 200
     return transaction

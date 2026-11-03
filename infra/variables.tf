@@ -37,3 +37,21 @@ variable "instance_type" {
   type        = string
   default     = "t3.small"
 }
+
+variable "events_enabled" {
+  description = "Lets the API send transfer.created events to the queue. Turn on only after the realtime stack (realtime/infra) has been applied, because the queue is looked up by name."
+  type        = bool
+  default     = false
+}
+
+variable "events_queue_name" {
+  description = "Name of the events queue, created by the realtime stack."
+  type        = string
+  default     = "alphabridge-transaction-events"
+}
+
+variable "etl_access_enabled" {
+  description = "Lets the ETL Glue workers reach the database on port 5432. Turn on only after the ETL network (etl/infra) has been applied, because the rule looks up its security group by name."
+  type        = bool
+  default     = false
+}

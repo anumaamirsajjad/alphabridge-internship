@@ -37,7 +37,16 @@ resource "aws_security_group" "app" {
   }
 }
 
-# The database accepts PostgreSQL (port 5432) from the app servers only.
+# The ETL Glue workers' security group. It lives in the ETL stack (etl/infra), so it is looked
+# up by name. Only read when etl_access_enabled is true.
+data "aws_security_group" "etl_glue" {
+  count  = var.etl_access_enabled ? 1 : 0
+  name   = "alphabridge-etl-glue-sg"
+  vpc_id = data.aws_vpc.default.id
+}
+
+# The database accepts PostgreSQL (port 5432) from the app servers, and from the ETL workers
+# when etl_access_enabled is on.
 resource "aws_security_group" "db" {
   name        = "alphabridge-pg-sg"
   description = "Created by RDS management console"
@@ -49,5 +58,17 @@ resource "aws_security_group" "db" {
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.app.id]
+  }
+
+  dynamic "ingress" {
+    for_each = var.etl_access_enabled ? [1] : []
+
+    content {
+      description     = "PostgreSQL from the ETL Glue workers"
+      from_port       = 5432
+      to_port         = 5432
+      protocol        = "tcp"
+      security_groups = [data.aws_security_group.etl_glue[0].id]
+    }
   }
 }

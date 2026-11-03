@@ -20,3 +20,12 @@ infra/*.tfstate
 infra/*.tfstate.*
 infra/crash.log
 infra/*.tfplan
+
+# Terraform working files for the ETL and real-time stacks: provider binaries, local state,
+# plan files, and the packaged Lambda and Glue code.
+.terraform/
+*.tfstate
+*.tfstate.*
+**/tfplan
+etl/infra/build/
+realtime/infra/build/

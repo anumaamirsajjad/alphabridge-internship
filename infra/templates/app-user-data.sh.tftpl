@@ -7,4 +7,4 @@ dnf install -y docker
 systemctl enable --now docker
 aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}
 DATABASE_URL=$(aws secretsmanager get-secret-value --region ${region} --secret-id alphabridge/database-url --query SecretString --output text)
-docker run -d --name alphabridge-api --restart unless-stopped -p 8000:8000 --log-driver=awslogs --log-opt awslogs-region=${region} --log-opt awslogs-group=${log_group} --log-opt awslogs-stream=api -e DATABASE_URL="$DATABASE_URL" -e PGSSLMODE=require ${registry}/alphabridge-api:${image_tag}
+docker run -d --name alphabridge-api --restart unless-stopped -p 8000:8000 --log-driver=awslogs --log-opt awslogs-region=${region} --log-opt awslogs-group=${log_group} --log-opt awslogs-stream=api -e DATABASE_URL="$DATABASE_URL" -e PGSSLMODE=require ${events_env}${registry}/alphabridge-api:${image_tag}

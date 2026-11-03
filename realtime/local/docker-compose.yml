@@ -1,0 +1,19 @@
+# Runs LocalStack, a fake AWS on your own machine. It has SQS and S3, so the event path can be
+# tested without touching real AWS.
+#
+# Start:  docker compose -f realtime/local/docker-compose.yml up -d
+# Stop:   docker compose -f realtime/local/docker-compose.yml down
+
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs,s3
+      - AWS_DEFAULT_REGION=ap-south-1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
