@@ -1,0 +1,65 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RunAthenaQueries",
+      "Effect": "Allow",
+      "Action": [
+        "athena:StartQueryExecution",
+        "athena:StopQueryExecution",
+        "athena:GetQueryExecution",
+        "athena:GetQueryResults",
+        "athena:GetWorkGroup",
+        "athena:ListWorkGroups",
+        "athena:GetDataCatalog",
+        "athena:ListDataCatalogs",
+        "athena:GetDatabase",
+        "athena:ListDatabases",
+        "athena:GetTableMetadata",
+        "athena:ListTableMetadata"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadGoldCatalog",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetDatabase",
+        "glue:GetDatabases",
+        "glue:GetTable",
+        "glue:GetTables",
+        "glue:GetPartitions"
+      ],
+      "Resource": [
+        "arn:aws:glue:ap-south-1:169774886945:catalog",
+        "arn:aws:glue:ap-south-1:169774886945:database/alphabridge_lake",
+        "arn:aws:glue:ap-south-1:169774886945:table/alphabridge_lake/gold_*",
+        "arn:aws:glue:ap-south-1:169774886945:table/alphabridge_lake/v_*"
+      ]
+    },
+    {
+      "Sid": "ReadGoldData",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": [
+        "arn:aws:s3:::alphabridge-lake-gold-169774886945",
+        "arn:aws:s3:::alphabridge-lake-gold-169774886945/*"
+      ]
+    },
+    {
+      "Sid": "QueryResults",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": [
+        "arn:aws:s3:::alphabridge-athena-results-169774886945",
+        "arn:aws:s3:::alphabridge-athena-results-169774886945/*"
+      ]
+    },
+    {
+      "Sid": "LakeKey",
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"],
+      "Resource": "arn:aws:kms:ap-south-1:169774886945:key/7a496649-efe9-4efc-a5ae-f719a8487e7b"
+    }
+  ]
+}

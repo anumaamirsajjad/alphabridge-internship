@@ -31,11 +31,13 @@ resource "aws_launch_template" "app" {
     security_groups             = [aws_security_group.app.id]
   }
 
+  # events_env is empty while events are off, so the startup script stays exactly as it was.
   user_data = base64encode(templatefile("${path.module}/templates/app-user-data.sh.tftpl", {
-    region    = var.region
-    registry  = "${var.account_id}.dkr.ecr.${var.region}.amazonaws.com"
-    image_tag = var.image_tag
-    log_group = aws_cloudwatch_log_group.app.name
+    region     = var.region
+    registry   = "${var.account_id}.dkr.ecr.${var.region}.amazonaws.com"
+    image_tag  = var.image_tag
+    log_group  = aws_cloudwatch_log_group.app.name
+    events_env = var.events_enabled ? "-e EVENTS_QUEUE_URL=${data.aws_sqs_queue.events[0].url} " : ""
   }))
 
   tag_specifications {
