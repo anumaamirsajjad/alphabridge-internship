@@ -8,9 +8,9 @@
 
 live_color      = "blue"
 blue_image_tag  = "d53882a1698dc1742de5b888bc3cd6ae3d5f7501"
-green_image_tag = "d53882a1698dc1742de5b888bc3cd6ae3d5f7501"
+green_image_tag = "07c5a5d4b357d7350729d1cec17449530b524b0f"
 blue_capacity   = 2
-green_capacity  = 0
+green_capacity  = 2
 
 # Flags the deploy must always keep on. See the CI notes in infra/README.md.
 etl_access_enabled = true
