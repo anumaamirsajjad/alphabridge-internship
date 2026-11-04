@@ -93,13 +93,13 @@ resource "aws_iam_role_policy" "github_deploy" {
         Sid      = "NewLaunchTemplateVersion"
         Effect   = "Allow"
         Action   = "ec2:CreateLaunchTemplateVersion"
-        Resource = aws_launch_template.app.arn
+        Resource = [for lt in aws_launch_template.color : lt.arn]
       },
       {
         Sid      = "RefreshServers"
         Effect   = "Allow"
         Action   = "autoscaling:StartInstanceRefresh"
-        Resource = aws_autoscaling_group.app.arn
+        Resource = [for asg in aws_autoscaling_group.color : asg.arn]
       },
       {
         Sid      = "WatchRefresh"

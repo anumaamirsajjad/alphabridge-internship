@@ -14,22 +14,54 @@ variable "account_id" {
   default     = "169774886945"
 }
 
-variable "image_tag" {
-  description = "Container image tag to run, for example the Git commit ID. The pipeline sets this on each deploy."
+# Blue/green: there are two complete app environments, "blue" and "green". Only the one named in
+# live_color receives customer traffic. A new release is started on the other one, tested, then
+# switched to by changing live_color. See infra/README.md ("Blue/green deploys").
+
+variable "live_color" {
+  description = "Which environment serves traffic: \"blue\" or \"green\". Changing it is the cutover, and changing it back is the rollback."
   type        = string
-  default     = "step2"
+  default     = "blue"
+
+  validation {
+    condition     = contains(["blue", "green"], var.live_color)
+    error_message = "live_color must be \"blue\" or \"green\"."
+  }
 }
 
-variable "app_server_count" {
-  description = "How many app servers the auto scaling group keeps running."
+variable "blue_image_tag" {
+  description = "Container image tag for the blue environment, for example the Git commit ID. Keep it equal to the live tag while blue is live."
+  type        = string
+}
+
+variable "green_image_tag" {
+  description = "Container image tag for the green environment, for example the Git commit ID."
+  type        = string
+}
+
+variable "blue_capacity" {
+  description = "How many servers the blue environment runs. 0 switches it off."
   type        = number
   default     = 2
 }
 
+variable "green_capacity" {
+  description = "How many servers the green environment runs. 0 switches it off."
+  type        = number
+  default     = 0
+}
+
 variable "app_server_max" {
-  description = "The most app servers the auto scaling group may run. Leaves room for a deploy to add one first."
+  description = "The most servers each environment may run. Leaves room for a rolling refresh to add one first."
   type        = number
   default     = 3
+}
+
+variable "deploy_test_header_value" {
+  description = "Optional. When set, requests carrying the header X-Deploy-Test with this value reach the idle environment, so it can be tested before the cutover. Leave empty to turn the test route off. Pass it with -var or an environment variable, not in the committed tfvars file."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "instance_type" {

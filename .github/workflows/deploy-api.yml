@@ -91,8 +91,8 @@ jobs:
           terraform validate
 
   # Runs only on a push to main, after code has been reviewed and tested on develop.
-  # It builds the image, applies Terraform with the new image tag, and the auto scaling
-  # group replaces the servers one at a time.
+  # It builds the image, runs the migrations, and starts the new image on the idle environment
+  # (blue or green). It does not move customer traffic; that is a manual change to live_color.
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -137,7 +137,10 @@ jobs:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:flyway-${{ github.sha }}
         run: |
-          INSTANCE=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names alphabridge-asg \
+          # The live environment is named in the tfvars file. Its servers are the ones still serving traffic.
+          LIVE=$(grep -E '^live_color' infra/environments/prod.tfvars | cut -d'"' -f2)
+          if [ "$LIVE" = "green" ]; then ASG=alphabridge-asg-green; else ASG=alphabridge-asg; fi
+          INSTANCE=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG" \
             --query "AutoScalingGroups[0].Instances[?LifecycleState=='InService'] | [0].InstanceId" --output text)
           PARAMS=$(jq -n --arg r "$REGISTRY" --arg i "$IMAGE" '{commands: [
             ("aws ecr get-login-password --region " + env.AWS_REGION + " | docker login --username AWS --password-stdin " + $r),
@@ -173,12 +176,18 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
-      # Terraform changes the server recipe to the new image. The auto scaling group then
-      # replaces the servers one at a time, with the load balancer draining each one.
-      - name: Apply infrastructure with the new image
+      # Blue/green: the new image goes to the IDLE environment only (the one not named live_color).
+      # Live customers keep the current servers. Switching traffic is a separate, manual change to
+      # live_color in infra/environments/prod.tfvars, after the idle environment has been tested.
+      - name: Start the new release on the idle environment
         working-directory: infra
         run: |
           terraform init
-          # etl_access_enabled must be passed on every apply. Without it, the deploy removes the
-          # database rule that lets the ETL Glue jobs connect.
-          terraform apply -auto-approve -input=false -var "image_tag=${{ github.sha }}" -var "etl_access_enabled=true"
+          LIVE=$(grep -E '^live_color' environments/prod.tfvars | cut -d'"' -f2)
+          if [ "$LIVE" = "green" ]; then IDLE=blue; else IDLE=green; fi
+          echo "Live: $LIVE. Deploying ${{ github.sha }} to the idle environment: $IDLE."
+          # Every apply must pass these flags. Without them, the deploy would remove the database rule
+          # that lets the ETL Glue jobs connect (etl_access_enabled), or turn off event sending (events_enabled).
+          terraform apply -auto-approve -input=false -var-file=environments/prod.tfvars \
+            -var "${IDLE}_image_tag=${{ github.sha }}" -var "${IDLE}_capacity=2" \
+            -var "etl_access_enabled=true" -var "events_enabled=true"

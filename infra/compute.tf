@@ -1,7 +1,34 @@
-# The app servers: the recipe for each server (launch template), and the group that keeps
-# the right number of them running and registered with the load balancer (auto scaling group).
+# The app servers, in two environments: "blue" and "green" (blue/green deploys).
 #
-# Both already exist (we created them by hand), so they're imported. See README.md.
+# Each environment has its own server recipe (launch template), its own group of servers (auto
+# scaling group), and its own target group in alb.tf. Only the environment named in live_color
+# receives traffic. The other one is the place where the next release is started and tested.
+#
+# The blue names are the ones that already exist (we created them by hand), so they're imported
+# or moved, not recreated. See README.md.
+
+locals {
+  # The settings that differ between the two environments. Everything else is shared.
+  environments = {
+    blue = {
+      image_tag = var.blue_image_tag
+      capacity  = var.blue_capacity
+      lt_name   = "alphabridge-app-lt"
+      asg_name  = "alphabridge-asg"
+      tg_name   = "alphabridge-tg"
+    }
+    green = {
+      image_tag = var.green_image_tag
+      capacity  = var.green_capacity
+      lt_name   = "alphabridge-app-lt-green"
+      asg_name  = "alphabridge-asg-green"
+      tg_name   = "alphabridge-tg-green"
+    }
+  }
+
+  # The environment that does not take traffic. The next release goes here.
+  candidate_color = var.live_color == "blue" ? "green" : "blue"
+}
 
 # The latest Amazon Linux 2023 image. It's looked up each time, so a new image can't go unnoticed.
 data "aws_ami" "al2023" {
@@ -14,8 +41,10 @@ data "aws_ami" "al2023" {
   }
 }
 
-resource "aws_launch_template" "app" {
-  name          = "alphabridge-app-lt"
+resource "aws_launch_template" "color" {
+  for_each = local.environments
+
+  name          = each.value.lt_name
   image_id      = data.aws_ami.al2023.id
   instance_type = var.instance_type
 
@@ -35,7 +64,7 @@ resource "aws_launch_template" "app" {
   user_data = base64encode(templatefile("${path.module}/templates/app-user-data.sh.tftpl", {
     region     = var.region
     registry   = "${var.account_id}.dkr.ecr.${var.region}.amazonaws.com"
-    image_tag  = var.image_tag
+    image_tag  = each.value.image_tag
     log_group  = aws_cloudwatch_log_group.app.name
     events_env = var.events_enabled ? "-e EVENTS_QUEUE_URL=${data.aws_sqs_queue.events[0].url} " : ""
   }))
@@ -48,17 +77,23 @@ resource "aws_launch_template" "app" {
   }
 }
 
-resource "aws_autoscaling_group" "app" {
-  name                = "alphabridge-asg"
-  min_size            = var.app_server_count
-  desired_capacity    = var.app_server_count
+resource "aws_autoscaling_group" "color" {
+  for_each = local.environments
+
+  name = each.value.asg_name
+
+  # min and desired follow the environment's capacity. 0 means the environment is switched off.
+  min_size            = each.value.capacity
+  desired_capacity    = each.value.capacity
   max_size            = var.app_server_max
   vpc_zone_identifier = data.aws_subnets.default.ids
 
-  # Points at the newest recipe version. When the recipe changes, this changes too, which starts the refresh below.
+  # Points at the newest recipe version of this environment. A new image tag changes the recipe,
+  # which starts a refresh of this environment only. The live environment is changed only when its
+  # own tag changes, so a release on the idle environment never touches the live servers.
   launch_template {
-    id      = aws_launch_template.app.id
-    version = aws_launch_template.app.latest_version
+    id      = aws_launch_template.color[each.key].id
+    version = aws_launch_template.color[each.key].latest_version
   }
 
   # Replaces the servers one at a time. At least half stay in service, and each new server gets
@@ -73,7 +108,7 @@ resource "aws_autoscaling_group" "app" {
   }
 
   # The load balancer decides a server is healthy, and replaces it if it isn't.
-  target_group_arns         = [aws_lb_target_group.app.arn]
+  target_group_arns         = [aws_lb_target_group.color[each.key].arn]
   health_check_type         = "ELB"
   health_check_grace_period = 300
 
@@ -82,4 +117,23 @@ resource "aws_autoscaling_group" "app" {
     value               = "alphabridge-app"
     propagate_at_launch = true
   }
+
+  # Which environment a server belongs to, so the blue and green servers can be told apart in the console.
+  tag {
+    key                 = "Environment"
+    value               = each.key
+    propagate_at_launch = true
+  }
+}
+
+# The blue environment was created by hand before the blue/green setup, under these names.
+# These moves keep the existing resources, so Terraform does not destroy and recreate the live servers.
+moved {
+  from = aws_launch_template.app
+  to   = aws_launch_template.color["blue"]
+}
+
+moved {
+  from = aws_autoscaling_group.app
+  to   = aws_autoscaling_group.color["blue"]
 }
