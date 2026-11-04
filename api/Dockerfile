@@ -38,6 +38,9 @@ COPY presentation/ ./presentation/
 COPY business/ ./business/
 COPY data/ ./data/
 COPY validation/ ./validation/
+# events.py: sends the transfer.created events. presentation/main.py imports it at startup,
+# so the image must include it, or the container crashes before it can serve requests.
+COPY events.py ./
 
 # Create a normal user and run the app as that user, not as root.
 # useradd --create-home: create the user and its home folder.
