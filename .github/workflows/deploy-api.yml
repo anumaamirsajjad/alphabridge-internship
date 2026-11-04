@@ -179,4 +179,6 @@ jobs:
         working-directory: infra
         run: |
           terraform init
-          terraform apply -auto-approve -input=false -var "image_tag=${{ github.sha }}"
+          # etl_access_enabled must be passed on every apply. Without it, the deploy removes the
+          # database rule that lets the ETL Glue jobs connect.
+          terraform apply -auto-approve -input=false -var "image_tag=${{ github.sha }}" -var "etl_access_enabled=true"
