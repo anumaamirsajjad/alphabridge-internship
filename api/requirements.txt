@@ -14,3 +14,5 @@ uvicorn==0.54.0
 pydantic==2.14.1
 # PostgreSQL driver. [binary] installs a ready-built part, so no C compiler is needed.
 psycopg[binary]==3.3.6
+# AWS SDK. Sends the transfer.created events to the SQS queue (see events.py).
+boto3==1.35.90

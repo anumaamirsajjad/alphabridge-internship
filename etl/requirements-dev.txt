@@ -1,0 +1,5 @@
+# Packages for testing the ETL code. Install with: pip install -r requirements-dev.txt
+# pyspark 3.5 matches the Spark version of AWS Glue 5.0. Spark tests also need Java 17.
+
+pytest==9.1.1
+pyspark==3.5.1
