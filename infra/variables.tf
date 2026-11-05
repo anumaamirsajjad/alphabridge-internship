@@ -87,3 +87,11 @@ variable "etl_access_enabled" {
   type        = bool
   default     = false
 }
+
+# SRE: alerting and scaling. See infra/monitoring.tf and infra/scaling.tf.
+
+variable "scaling_requests_per_server" {
+  description = "Target requests per app server for auto scaling (ALBRequestCountPerTarget). Set it from a load test, not by guessing."
+  type        = number
+  default     = 500
+}
