@@ -6,11 +6,18 @@
 #   - Latency: p95 of target response time under 300 ms.
 #   - Event freshness: the oldest transfer event waits in SQS under 5 minutes.
 #
-# Every alarm notifies the SRE topic below. The topic has no subscribers yet, so nothing is sent
-# until one is added. Email is out of scope for now. The existing ETL and DLQ alarms are not changed here.
+# Every alarm notifies the SRE topic below. Alerts are sent by email when var.alerts_email is set.
+# The existing ETL and DLQ alarms are not changed here.
 
 resource "aws_sns_topic" "sre_alerts" {
   name = "alphabridge-sre-alerts"
+}
+
+resource "aws_sns_topic_subscription" "sre_email" {
+  count     = var.alerts_email == "" ? 0 : 1
+  topic_arn = aws_sns_topic.sre_alerts.arn
+  protocol  = "email"
+  endpoint  = var.alerts_email # AWS sends a confirmation email. The subscription is inactive until it is accepted.
 }
 
 # SLI: availability, with a fast-burn threshold. Fires when more than 1.44% of requests are 5xx
