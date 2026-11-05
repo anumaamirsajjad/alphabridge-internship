@@ -7,7 +7,7 @@
 # A release goes to the environment that is NOT live (see infra/README.md, "Blue/green deploys").
 
 live_color      = "green"
-blue_image_tag  = "d53882a1698dc1742de5b888bc3cd6ae3d5f7501"
+blue_image_tag  = "5394708ccbfb4663eabf7b706bb0418f4bef91fd"
 green_image_tag = "07c5a5d4b357d7350729d1cec17449530b524b0f"
 blue_capacity   = 0
 green_capacity  = 2
