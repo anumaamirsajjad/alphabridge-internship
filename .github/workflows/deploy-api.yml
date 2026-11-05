@@ -181,7 +181,14 @@ jobs:
       # live_color in infra/environments/prod.tfvars, after the idle environment has been tested.
       - name: Start the new release on the idle environment
         working-directory: infra
+        env:
+          # The test-route secret. Without it, the apply would remove the test route (candidate_test).
+          TF_VAR_deploy_test_header_value: ${{ secrets.DEPLOY_TEST_HEADER_VALUE }}
         run: |
+          if [ -z "$TF_VAR_deploy_test_header_value" ]; then
+            echo "Secret DEPLOY_TEST_HEADER_VALUE is not set. Stopping the deploy so the test route is not removed."
+            exit 1
+          fi
           terraform init
           LIVE=$(grep -E '^live_color' environments/prod.tfvars | cut -d'"' -f2)
           if [ "$LIVE" = "green" ]; then IDLE=blue; else IDLE=green; fi

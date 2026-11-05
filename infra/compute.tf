@@ -112,6 +112,12 @@ resource "aws_autoscaling_group" "color" {
   health_check_type         = "ELB"
   health_check_grace_period = 300
 
+  # The scaling policy in scaling.tf changes desired_capacity at runtime. Without this, every
+  # terraform apply would reset it. min_size stays under Terraform control (the environment's capacity).
+  lifecycle {
+    ignore_changes = [desired_capacity]
+  }
+
   tag {
     key                 = "Name"
     value               = "alphabridge-app"
