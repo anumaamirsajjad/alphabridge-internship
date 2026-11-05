@@ -95,3 +95,9 @@ variable "scaling_requests_per_server" {
   type        = number
   default     = 500
 }
+
+variable "alerts_email" {
+  description = "Email address that receives SRE alerts. Empty means no email subscription. AWS sends a confirmation email that must be accepted."
+  type        = string
+  default     = ""
+}

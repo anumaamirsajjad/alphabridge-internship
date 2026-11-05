@@ -15,3 +15,7 @@ green_capacity  = 2
 # Flags the deploy must always keep on. See the CI notes in infra/README.md.
 etl_access_enabled = true
 events_enabled     = true
+
+# SRE alert email. Gets a subscription on the alphabridge-sre-alerts topic. AWS sends a confirmation
+# email that must be accepted before alerts arrive. Kept here so every deploy keeps the subscription.
+alerts_email = "jkfolics@gmail.com"
